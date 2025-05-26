@@ -64,12 +64,14 @@ app.post('/userdata', async (req, res) => {
 
 
 // Simple GET test route
-app.get('/', (req, res) => {
-  res.json({ message: '✅ Node backend is running' });
-});
-
-app.get('/surveys', (req, res) => {
-  res.json(surveys);
+app.get("/userdata", async (req, res) => {
+  try {
+    const surveys = await SurveyModel.find({});
+    res.json(surveys);  
+  } catch (err) {
+    console.error("❌ Error fetching surveys:", err);
+    res.status(500).json({ error: "Failed to fetch surveys" });
+  }
 });
 
 // Start the server
