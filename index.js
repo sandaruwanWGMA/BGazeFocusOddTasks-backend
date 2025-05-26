@@ -68,6 +68,10 @@ app.get('/', (req, res) => {
   res.json({ message: '✅ Node backend is running' });
 });
 
+app.get('/surveys', (req, res) => {
+  res.json(surveys);
+});
+
 // Start the server
 app.listen(PORT, () => {
   console.log(`🚀 Server listening on port ${PORT}`);
