@@ -66,13 +66,14 @@ app.post('/userdata', async (req, res) => {
 // Simple GET test route
 app.get("/userdata", async (req, res) => {
   try {
-    const surveys = await SurveyModel.find({});
+    const surveys = await UserData.find({});
     res.json(surveys);  
   } catch (err) {
     console.error("❌ Error fetching surveys:", err);
     res.status(500).json({ error: "Failed to fetch surveys" });
   }
 });
+
 
 // Start the server
 app.listen(PORT, () => {
