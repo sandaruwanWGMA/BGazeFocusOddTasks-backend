@@ -52,9 +52,16 @@ app.post('/userdata', async (req, res) => {
     res.status(201).json({ message: '✅ Data saved successfully' });
   } catch (error) {
     console.error('❌ Error saving data:', error);
-    res.status(500).json({ error: 'Internal server error' });
+
+    // Handle duplicate key error
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.idName) {
+      return res.status(409).json({ error: 'Duplicate key: idName already exists' });
+    }
+
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
+
 
 // Simple GET test route
 app.get('/', (req, res) => {
