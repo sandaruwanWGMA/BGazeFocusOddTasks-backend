@@ -156,7 +156,7 @@ app.post("/send-email-otp", async (req, res) => {
         </div>
         <h2 style="text-align: center; color: #333; font-weight: bold;">BGazeFocus-OddTasks Verification</h2>
         <p>Hi,</p>
-        <p>I'm <strong>Molindu</strong> from the Braingaze team. To verify your email address, please use the following one-time password (OTP):</p>
+        <p>I'm <strong>Molindu</strong> from the Braingaze team. To verify your account, please use the following one-time password (OTP):</p>
         <div style="text-align: center; margin: 20px 0;">
           <span style="display: inline-block; font-size: 32px; font-weight: bold; color: #ffffff; background-color: #007bff; padding: 12px 24px; border-radius: 8px; letter-spacing: 2px;">
             ${otp}
