@@ -50,7 +50,7 @@ const UserData = mongoose.model('UserData', userSchema);
 // 🚀 POST: Save Unity User Data
 // =============================
 
-app.post('/userdata', async (req, res) => {
+app.post('/userprofile', async (req, res) => {
   try {
     const data = req.body;
     const newUser = new UserData(data);
@@ -71,7 +71,7 @@ app.post('/userdata', async (req, res) => {
 // 🔍 GET: Fetch All Entries
 // =========================
 
-app.get("/userdata", async (req, res) => {
+app.get("/userprofile", async (req, res) => {
   try {
     const surveys = await UserData.find({});
     res.json(surveys);  
@@ -85,7 +85,7 @@ app.get("/userdata", async (req, res) => {
 // ✉️ POST: Send OTP to Email
 // =============================
 
-const otpStore = {}; // In-memory OTP storage (use Redis or DB in production)
+const otpStore = {}; 
 
 app.post("/send-email-otp", async (req, res) => {
   const { email } = req.body;
@@ -101,7 +101,7 @@ app.post("/send-email-otp", async (req, res) => {
     service: 'gmail',
     auth: {
       user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_PASS, // App password (not your main Gmail password)
+      pass: process.env.GMAIL_PASS, 
     },
   });
 
