@@ -128,13 +128,18 @@ app.post("/send-email-otp", async (req, res) => {
 app.post("/verify-email-otp", (req, res) => {
   const { email, otp } = req.body;
 
-  if (otpStore[email] && otpStore[email] === otp) {
-    delete otpStore[email]; // Optional: clear OTP after verification
-    return res.json({ verified: true, message: "✅ OTP verified" });
+  if (!email || !otp) {
+    return res.status(400).json({ verified: false, message: "Email and OTP are required" });
   }
 
-  return res.status(400).json({ verified: false, message: "❌ Invalid or expired OTP" });
+  if (otpStore[email] === otp) {
+    delete otpStore[email]; 
+    return res.json({ verified: true, message: "✅ OTP verified successfully" });
+  } else {
+    return res.json({ verified: false, message: "❌ Invalid or expired OTP" });
+  }
 });
+
 
 // =============================
 // 🚀 Start the Express Server
