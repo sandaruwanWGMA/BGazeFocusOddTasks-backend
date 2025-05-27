@@ -162,7 +162,7 @@ app.post("/send-email-otp", async (req, res) => {
             ${otp}
           </span>
         </div>
-        <p>If you have any questions regarding the OTP, please reply in this same thread.</p>
+        <p>If you have any questions about this OTP, feel free to reply directly to this email thread.</p>
         <p style="margin-top: 30px;">Thanks,<br><strong>The Braingaze Team</strong></p>
       </div>
     `,
