@@ -28,7 +28,7 @@ mongoose.connect(mongoUri, {
 
 const userSchema = new mongoose.Schema({
   idName: { type: String, required: true, unique: true },  
-  email: string,
+  email: String,
   age: String,
   genderIdentity: String,
   adhdDiagnosisConfidence: String,
