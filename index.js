@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema({
   geographicRegion: String
 });
 
-const UserData = mongoose.model('UserData', userSchema);
+const UserData = mongoose.model('UserProfile', userSchema);
 
 // =============================
 // 🚀 POST: Save Unity User Data
