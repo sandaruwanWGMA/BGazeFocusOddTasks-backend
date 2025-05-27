@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const nodemailer = require('nodemailer'); // ⬅️ Added for Gmail-based OTP sending
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,7 +21,10 @@ mongoose.connect(mongoUri, {
 .then(() => console.log('✅ MongoDB connected'))
 .catch(err => console.error('❌ MongoDB connection error:', err));
 
-// Define Mongoose schema
+// ====================
+// 📦 Mongoose Schema
+// ====================
+
 const userSchema = new mongoose.Schema({
   idName: { type: String, required: true, unique: true },  
   age: String,
@@ -40,10 +44,12 @@ const userSchema = new mongoose.Schema({
   geographicRegion: String
 });
 
-// Create model
 const UserData = mongoose.model('UserData', userSchema);
 
-// POST endpoint to receive Unity data
+// =============================
+// 🚀 POST: Save Unity User Data
+// =============================
+
 app.post('/userdata', async (req, res) => {
   try {
     const data = req.body;
@@ -53,7 +59,6 @@ app.post('/userdata', async (req, res) => {
   } catch (error) {
     console.error('❌ Error saving data:', error);
 
-    // Handle duplicate key error
     if (error.code === 11000 && error.keyPattern && error.keyPattern.idName) {
       return res.status(409).json({ error: 'Duplicate key: idName already exists' });
     }
@@ -62,8 +67,10 @@ app.post('/userdata', async (req, res) => {
   }
 });
 
+// =========================
+// 🔍 GET: Fetch All Entries
+// =========================
 
-// Simple GET test route
 app.get("/userdata", async (req, res) => {
   try {
     const surveys = await UserData.find({});
@@ -74,12 +81,68 @@ app.get("/userdata", async (req, res) => {
   }
 });
 
+// =============================
+// ✉️ POST: Send OTP to Email
+// =============================
 
-// Start the server
+const otpStore = {}; // In-memory OTP storage (use Redis or DB in production)
+
+app.post("/send-email-otp", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  otpStore[email] = otp;
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_PASS, // App password (not your main Gmail password)
+    },
+  });
+
+  const mailOptions = {
+    from: process.env.GMAIL_USER,
+    to: email,
+    subject: 'Your OTP Code',
+    text: `Your verification code is: ${otp}`,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    res.json({ message: "✅ OTP sent to email" });
+  } catch (err) {
+    console.error("❌ Error sending OTP:", err);
+    res.status(500).json({ error: "Failed to send OTP" });
+  }
+});
+
+// =============================
+// ✅ POST: Verify OTP
+// =============================
+
+app.post("/verify-email-otp", (req, res) => {
+  const { email, otp } = req.body;
+
+  if (otpStore[email] && otpStore[email] === otp) {
+    delete otpStore[email]; // Optional: clear OTP after verification
+    return res.json({ verified: true, message: "✅ OTP verified" });
+  }
+
+  return res.status(400).json({ verified: false, message: "❌ Invalid or expired OTP" });
+});
+
+// =============================
+// 🚀 Start the Express Server
+// =============================
+
 app.listen(PORT, () => {
   console.log(`🚀 Server listening on port ${PORT}`);
 });
-
 
 
 // mongodb+srv://Molindu:Diyaparaduwa123@@bgazefocus-oddtasks.bmvxopg.mongodb.net/?retryWrites=true&w=majority&appName=BGazeFocus-OddTasks
