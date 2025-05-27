@@ -87,16 +87,76 @@ app.get("/userprofile", async (req, res) => {
 
 const otpStore = {}; 
 
+// app.post("/send-email-otp", async (req, res) => {
+//   const { email } = req.body;
+
+//   if (!email) {
+//     return res.status(400).json({ error: "Email is required" });
+//   }
+
+//   const otp = Math.floor(100000 + Math.random() * 900000).toString();
+//   otpStore[email] = otp;
+
+//   const transporter = nodemailer.createTransport({
+//     service: 'gmail',
+//     auth: {
+//       user: process.env.GMAIL_USER,
+//       pass: process.env.GMAIL_PASS, 
+//     },
+//   });
+
+//   const mailOptions = {
+//     from: process.env.GMAIL_USER,
+//     to: email,
+//     subject: 'Your OTP Code for BGazeFocus-OddTasks',
+//     text: `Hi! I am Molindu from Braingaze team. Your verification code is: ${otp}`,
+//   };
+
+//   try {
+//     await transporter.sendMail(mailOptions);
+//     res.json({ message: "✅ OTP sent to email" });
+//   } catch (err) {
+//     console.error("❌ Error sending OTP:", err);
+//     res.status(500).json({ error: "Failed to send OTP" });
+//   }
+// });
+
+// =============================
+// ✅ POST: Verify OTP
+// =============================
+
+// app.post("/verify-email-otp", (req, res) => {
+//   const { email, otp } = req.body;
+
+//   if (!email || !otp) {
+//     return res.status(400).json({ verified: false, message: "Email and OTP are required" });
+//   }
+
+//   if (otpStore[email] === otp) {
+//     delete otpStore[email]; 
+//     return res.json({ verified: true, message: "✅ OTP verified successfully" });
+//   } else {
+//     return res.json({ verified: false, message: "❌ Invalid or expired OTP" });
+//   }
+// });
+
 app.post("/send-email-otp", async (req, res) => {
+  console.log("Received POST request to /send-email-otp");
+
   const { email } = req.body;
+  console.log("Request body:", req.body);
 
   if (!email) {
+    console.warn("Email not provided in request");
     return res.status(400).json({ error: "Email is required" });
   }
 
+  // Generate a 6-digit OTP
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   otpStore[email] = otp;
+  console.log(`Generated OTP for ${email}: ${otp}`);
 
+  // Configure nodemailer transport
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -105,6 +165,8 @@ app.post("/send-email-otp", async (req, res) => {
     },
   });
 
+  console.log("Nodemailer transporter configured");
+
   const mailOptions = {
     from: process.env.GMAIL_USER,
     to: email,
@@ -112,33 +174,44 @@ app.post("/send-email-otp", async (req, res) => {
     text: `Hi! I am Molindu from Braingaze team. Your verification code is: ${otp}`,
   };
 
+  console.log("Mail options prepared:", mailOptions);
+
   try {
     await transporter.sendMail(mailOptions);
+    console.log(`✅ OTP email sent successfully to ${email}`);
     res.json({ message: "✅ OTP sent to email" });
   } catch (err) {
-    console.error("❌ Error sending OTP:", err);
+    console.error("❌ Error sending OTP email:", err);
     res.status(500).json({ error: "Failed to send OTP" });
   }
 });
 
-// =============================
-// ✅ POST: Verify OTP
-// =============================
 
 app.post("/verify-email-otp", (req, res) => {
+  console.log("Received POST request to /verify-email-otp");
+
   const { email, otp } = req.body;
+  console.log("Request body:", req.body);
 
   if (!email || !otp) {
+    console.warn("Missing email or OTP in request");
     return res.status(400).json({ verified: false, message: "Email and OTP are required" });
   }
 
+  console.log(`Checking OTP for email: ${email}`);
+  console.log(`Expected OTP: ${otpStore[email]}, Provided OTP: ${otp}`);
+
   if (otpStore[email] === otp) {
-    delete otpStore[email]; 
+    console.log("OTP matched. Deleting OTP from store.");
+    delete otpStore[email];
+    console.log("OTP deleted from store.");
     return res.json({ verified: true, message: "✅ OTP verified successfully" });
   } else {
+    console.warn("OTP mismatch or expired OTP");
     return res.json({ verified: false, message: "❌ Invalid or expired OTP" });
   }
 });
+
 
 
 // =============================
