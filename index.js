@@ -83,6 +83,30 @@ app.get("/userprofile", async (req, res) => {
   }
 });
 
+// =========================
+// 🔍 GET: Search Surveys by idName substring (case-insensitive)
+// /userprofile/search?q=molindu
+// =========================
+app.get("/userprofile/search", async (req, res) => {
+  try {
+    const query = req.query.q;
+
+    if (!query || query.trim() === "") {
+      return res.status(400).json({ error: "Query parameter 'q' is required" });
+    }
+
+    // Use regex for case-insensitive partial matching
+    const regex = new RegExp(query, "i");
+
+    const matchedSurveys = await UserData.find({ idName: regex });
+
+    res.json(matchedSurveys);
+  } catch (err) {
+    console.error("❌ Error searching surveys:", err);
+    res.status(500).json({ error: "Failed to search surveys" });
+  }
+});
+
 // =============================
 // ✅ POST: Verify OTP
 // =============================
