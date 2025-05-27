@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const nodemailer = require('nodemailer'); // ⬅️ Added for Gmail-based OTP sending
+const nodemailer = require('nodemailer'); 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
