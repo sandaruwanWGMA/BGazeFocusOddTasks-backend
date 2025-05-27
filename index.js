@@ -108,8 +108,8 @@ app.post("/send-email-otp", async (req, res) => {
   const mailOptions = {
     from: process.env.GMAIL_USER,
     to: email,
-    subject: 'Your OTP Code',
-    text: `Your verification code is: ${otp}`,
+    subject: 'Your OTP Code for BGazeFocus-OddTasks',
+    text: `Hi! I am Molindu from Braingaze team. Your verification code is: ${otp}`,
   };
 
   try {
