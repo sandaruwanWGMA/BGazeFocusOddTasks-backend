@@ -84,7 +84,7 @@ app.get("/userprofile", async (req, res) => {
 });
 
 // =========================
-// 🔍 GET: Search Surveys by idName substring (case-insensitive)
+// 🔍 GET: Search Surveys by idName or email substring (case-insensitive)
 // /userprofile/search?q=molindu
 // =========================
 app.get("/userprofile/search", async (req, res) => {
@@ -95,10 +95,14 @@ app.get("/userprofile/search", async (req, res) => {
       return res.status(400).json({ error: "Query parameter 'q' is required" });
     }
 
-    // Use regex for case-insensitive partial matching
     const regex = new RegExp(query, "i");
 
-    const matchedSurveys = await UserData.find({ idName: regex });
+    const matchedSurveys = await UserData.find({
+      $or: [
+        { idName: regex },
+        { email: regex },
+      ]
+    });
 
     res.json(matchedSurveys);
   } catch (err) {
@@ -106,6 +110,7 @@ app.get("/userprofile/search", async (req, res) => {
     res.status(500).json({ error: "Failed to search surveys" });
   }
 });
+
 
 // =============================
 // ✅ POST: Verify OTP
