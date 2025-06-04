@@ -112,6 +112,31 @@ app.get("/userprofile/search", async (req, res) => {
 });
 
 
+// =========================
+// 🔍 GET: Check if user profile exists by exact email 
+// /userprofile/exists?email=user@example.com
+// Returns 200 if found, 404 if not found
+// =========================
+app.get('/userprofile/exists', async (req, res) => {
+  const email = req.query.email;
+  if (!email) {
+    return res.status(400).json({ error: 'Email query parameter is required' });
+  }
+
+  try {
+    const user = await UserProfile.findOne({ email: email.toLowerCase() });
+    if (user) {
+      return res.status(200).json({ exists: true });
+    } else {
+      return res.status(404).json({ exists: false });
+    }
+  } catch (error) {
+    console.error('Error checking user profile:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
 // =============================
 // ✅ POST: Verify OTP
 // =============================
