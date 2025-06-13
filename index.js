@@ -245,6 +245,33 @@ app.post("/send-email-otp", async (req, res) => {
 
 
 // =============================
+// 🗑️ DELETE: Remove User Profile
+// =============================
+
+app.delete("/userprofile/:idName", async (req, res) => {
+  try {
+    const { idName } = req.params;
+    
+    if (!idName) {
+      return res.status(400).json({ error: "idName parameter is required" });
+    }
+    
+    const deletedUser = await UserData.findOneAndDelete({ idName });
+    
+    if (!deletedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    console.log(`✅ User profile deleted: ${idName}`);
+    return res.status(200).json({ message: "✅ User profile deleted successfully" });
+  } catch (error) {
+    console.error("❌ Error deleting user profile:", error);
+    return res.status(500).json({ error: "Failed to delete user profile" });
+  }
+});
+
+
+// =============================
 // 🚀 Start the Express Server
 // =============================
 
