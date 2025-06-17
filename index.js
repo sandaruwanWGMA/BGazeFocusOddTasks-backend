@@ -124,7 +124,7 @@ app.get('/userprofile/exists', async (req, res) => {
   }
 
   try {
-    const user = await UserData.findOne({ email: email.toLowerCase() }); 
+    const user = await UserData.findOne({ email: email }); 
     if (user) {
       return res.status(200).json({ exists: true });
     } else {
@@ -135,7 +135,6 @@ app.get('/userprofile/exists', async (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 
 // =============================
