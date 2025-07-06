@@ -136,6 +136,31 @@ app.get('/userprofile/exists', async (req, res) => {
   }
 });
 
+// ========================= 
+// 🔍 GET: Fetch User Profile by ID
+// ========================= 
+app.get("/userprofile/:idName", async (req, res) => {
+  try {
+    const { idName } = req.params;
+    
+    if (!idName) {
+      return res.status(400).json({ error: "idName parameter is required" });
+    }
+    
+    const user = await UserData.findOne({ idName });
+    
+    if (!user) {
+      return res.status(404).json({ error: "User profile not found" });
+    }
+    
+    console.log(`✅ User profile fetched: ${idName}`);
+    return res.status(200).json(user);
+  } catch (error) {
+    console.error("❌ Error fetching user profile:", error);
+    return res.status(500).json({ error: "Failed to fetch user profile" });
+  }
+});
+
 
 // =============================
 // ✅ POST: Verify OTP
