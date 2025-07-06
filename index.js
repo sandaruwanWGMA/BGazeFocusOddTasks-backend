@@ -84,7 +84,7 @@ app.get("/userprofile", async (req, res) => {
 });
 
 // =========================
-// 🔍 GET: Search Surveys by idName or email substring (case-insensitive)
+// 🔍 GET: Search Surveys by idName or email substring 
 // /userprofile/search?q=molindu
 // =========================
 app.get("/userprofile/search", async (req, res) => {
@@ -269,6 +269,68 @@ app.delete("/userprofile/:idName", async (req, res) => {
   }
 });
 
+
+// =============================
+// ✏️ PUT: Update User Profile
+// =============================
+
+app.put("/userprofile/:idName", async (req, res) => {
+  try {
+    const { idName } = req.params;
+    const { newIdName, newEmail } = req.body;
+    
+    if (!idName) {
+      return res.status(400).json({ error: "idName parameter is required" });
+    }
+    
+    // Check if user exists
+    const existingUser = await UserData.findOne({ idName });
+    
+    if (!existingUser) {
+      return res.status(404).json({ error: "User not found. Please check the username and try again." });
+    }
+    
+    // Prepare update object with only provided fields
+    const updateData = {};
+    if (newIdName) updateData.idName = newIdName;
+    if (newEmail) updateData.email = newEmail;
+    
+    // If no fields to update, return early
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: "No update data provided. Please provide newIdName or newEmail." });
+    }
+    
+    // Check if new idName already exists (if changing idName)
+    if (newIdName && newIdName !== idName) {
+      const duplicateCheck = await UserData.findOne({ idName: newIdName });
+      if (duplicateCheck) {
+        return res.status(409).json({ error: "Username already taken. Please choose a different username." });
+      }
+    }
+    
+    // Update the user profile
+    const updatedUser = await UserData.findOneAndUpdate(
+      { idName }, 
+      updateData, 
+      { new: true }
+    );
+    
+    console.log(`✅ User profile updated: ${idName} -> ${updatedUser.idName}`);
+    return res.status(200).json({ 
+      message: "✅ User profile updated successfully",
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("❌ Error updating user profile:", error);
+    
+    // Handle duplicate key error
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.idName) {
+      return res.status(409).json({ error: "Username already taken. Please choose a different username." });
+    }
+    
+    return res.status(500).json({ error: "Failed to update user profile" });
+  }
+});
 
 // =============================
 // 🚀 Start the Express Server
