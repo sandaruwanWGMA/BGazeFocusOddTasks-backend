@@ -47,7 +47,22 @@ router.post('/send-email-otp', async (req, res) => {
           <p>Hi there,</p>
           <p>I’m <strong>Molindu</strong> from <a href="https://braingaze.com" style="color:#1e3a8a;text-decoration:none;">Braingaze</a>. You’re receiving this e-mail because you attempted to sign in to the <strong>BGaze Monitoring</strong> research-study app.</p>
           <div style="margin:32px 0;text-align:center;">
-            <span style="display:inline-block;padding:12px 28px;background:#eef2ff;border-radius:10px;font-size:32px;font-weight:700;letter-spacing:4px;color:#1e3a8a;">${otp}</span>
+            <div style="margin:32px auto;text-align:center;">
+              <div style="
+                display:inline-block;
+                background:#e0ecff;
+                color:#1e3a8a;
+                padding:16px 32px;
+                font-size:32px;
+                font-weight:bold;
+                letter-spacing:6px;
+                border-radius:12px;
+                box-shadow:0 4px 8px rgba(0,0,0,0.1);
+                font-family:monospace;
+              ">
+                ${otp}
+              </div>
+            </div>
           </div>
           <p>Please enter the above code to complete your login. This passcode will expire in 5&nbsp;minutes.</p>
           <p>If you did not request this code or run into any issues, simply reply to this e-mail and our team will assist you.</p>
