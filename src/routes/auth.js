@@ -30,8 +30,34 @@ router.post('/send-email-otp', async (req, res) => {
   const mailOptions = {
     from   : process.env.GMAIL_USER,
     to     : email,
-    subject: 'Your OTP Code for BGazeFocus-OddTasks',
-    html   : `<h1>BGaze OTP</h1><p>Your code is <b>${otp}</b></p>`,
+    subject: 'Your One-Time Passcode | BGaze Monitoring',
+    html   : `<!doctype html>
+<html>
+  <body style="margin:0;padding:24px;background:#f5f7fa;font-family:Arial,Helvetica,sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:auto;background:#ffffff;border-radius:8px;overflow:hidden;">
+      <tr>
+        <td style="background:#1e3a8a;padding:16px 24px;text-align:center;color:#ffffff;font-size:24px;font-weight:bold;">
+          BGaze&nbsp;Focus – One-Time Passcode
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:24px;color:#444;font-size:16px;line-height:1.5;">
+          <p>Hi there,</p>
+          <p>I’m <strong>Molindu</strong> from <a href="https://braingaze.com" style="color:#1e3a8a;text-decoration:none;">Braingaze</a>. You’re receiving this e-mail because you attempted to sign in to the <strong>BGaze Monitoring</strong> research-study app.</p>
+          <p style="margin:32px 0;text-align:center;font-size:32px;font-weight:700;letter-spacing:4px;color:#1e3a8a;">${otp}</p>
+          <p>Please enter the above code to complete your login. This passcode will expire in 10&nbsp;minutes.</p>
+          <p>If you did not request this code or run into any issues, simply reply to this e-mail and our team will assist you.</p>
+          <p style="margin-top:32px;">Best regards,<br/>Molindu<br/>R&amp;D, Braingaze</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f0f2f5;padding:16px 24px;font-size:12px;color:#666;text-align:center;">
+          © Braingaze · <a href="https://braingaze.com" style="color:#666;text-decoration:none;">braingaze.com</a>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`
   };
 
   try {
