@@ -11,7 +11,6 @@ const UserData = require('../models/UserProfile');
 
 const router = express.Router();
 
-// Simple in-memory email → OTP map. Lives only for the lifetime of the container.
 const otpStore = {};
 
 // (1) SEND OTP
