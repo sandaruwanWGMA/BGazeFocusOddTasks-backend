@@ -56,8 +56,8 @@ router.post('/verify-email-otp', (req, res) => {
   const token = signToken({ email });
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
-    secure  : true,
-    sameSite: 'strict',
+    secure  : process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
     maxAge  : 7 * 24 * 60 * 60 * 1000, // 7 days in ms
   });
 
@@ -75,7 +75,7 @@ router.get('/auto-login', authenticateToken, async (req, res) => {
   }
 });
 
-// (4) Example extra protected endpoint
+// (4) extra protected endpoint
 router.get('/auth/me', authenticateToken, (_req, res) =>
   res.json({ ok: true, user: _req.user })
 );
