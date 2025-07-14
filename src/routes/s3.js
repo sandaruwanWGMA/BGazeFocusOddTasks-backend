@@ -11,6 +11,9 @@ const { authenticateToken } = require('../utils/auth');
 
 // (1) UPLOAD  multipart/form-data field "file"
 router.post('/upload', authenticateToken, upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file received' });
+  }
   res.json({ message: '✅ File uploaded', key: req.file.key, url: req.file.location });
 });
 
