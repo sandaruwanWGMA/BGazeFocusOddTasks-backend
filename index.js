@@ -1,369 +1,346 @@
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const nodemailer = require('nodemailer'); 
-const path = require('path');
+/**********************************************************
+ * 🌐  BGazeFocus-OddTasks – Express + Mongo + AWS-S3 API  *
+ **********************************************************/
 
-const app = express();
+/* ─────────────────────────────────────────────────────────
+ * 1. 🔧  Imports & Global Config
+ * ───────────────────────────────────────────────────────── */
+require("dotenv").config();
+const express     = require("express");
+const mongoose    = require("mongoose");
+const cors        = require("cors");
+const nodemailer  = require("nodemailer");
+const path        = require("path");
+
+/* AWS S3 */
+const AWS         = require("aws-sdk");
+const multer      = require("multer");
+const multerS3    = require("multer-s3");
+
+const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+/* ─────────────────────────────────────────────────────────
+ * 2. 🌎  Middleware
+ * ───────────────────────────────────────────────────────── */
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection
-const mongoUri = process.env.MONGODB_URI;
+/* ─────────────────────────────────────────────────────────
+ * 3. 🔗  MongoDB Connection
+ * ───────────────────────────────────────────────────────── */
+mongoose
+  .connect(process.env.MONGODB_URI, {
+    useNewUrlParser   : true,
+    useUnifiedTopology: true,
+  })
+  .then(()  => console.log("✅ MongoDB connected"))
+  .catch((e)=> console.error("❌ MongoDB connection error:", e));
 
-mongoose.connect(mongoUri, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('✅ MongoDB connected'))
-.catch(err => console.error('❌ MongoDB connection error:', err));
-
-// ====================
-// 📦 Mongoose Schema
-// ====================
-
+/* ─────────────────────────────────────────────────────────
+ * 4. 📦  Mongoose Schema & Model
+ * ───────────────────────────────────────────────────────── */
 const userSchema = new mongoose.Schema({
-  idName: { type: String, required: true, unique: true },  
-  email: String,
-  age: String,
-  genderIdentity: String,
-  adhdDiagnosisConfidence: String,
-  adhdSymptomProfile: String,
-  adhdMedicationStatus: String,
-  autismDiagnosisConfidence: String,
+  idName                     : { type: String, required: true, unique: true },
+  email                      : String, 
+  age                        : String,
+  genderIdentity             : String,
+  adhdDiagnosisConfidence    : String,
+  adhdSymptomProfile         : String,
+  adhdMedicationStatus       : String,
+  autismDiagnosisConfidence  : String,
   facialExpressionRecognition: String,
-  eyeContactComfort: String,
+  eyeContactComfort          : String,
   readingComprehensionChallenges: String,
-  readingProficiency: String,
-  dailyFunctionalChallenges: String,
-  dyslexiaDiagnosis: String,
-  dyslexiaManagement: String,
-  visualFocusPatterns: String,
-  geographicRegion: String
+  readingProficiency         : String,
+  dailyFunctionalChallenges  : String,
+  dyslexiaDiagnosis          : String,
+  dyslexiaManagement         : String,
+  visualFocusPatterns        : String,
+  geographicRegion           : String,
 });
 
-const UserData = mongoose.model('UserProfile', userSchema);
+/* 📥  Index on `email` (non-unique) to make look-ups O(log n) & index-only  */
+userSchema.index({ email: 1 });
 
-// =============================
-// 🚀 POST: Save Unity User Data
-// =============================
+const UserData = mongoose.model("UserProfile", userSchema);
 
-app.post('/userprofile', async (req, res) => {
+/* ─────────────────────────────────────────────────────────
+ * 5. 🔐  In-Memory OTP Store
+ * ───────────────────────────────────────────────────────── */
+const otpStore = {};
+
+/* ─────────────────────────────────────────────────────────
+ * 6. ☁️  AWS-S3 Configuration
+ * ───────────────────────────────────────────────────────── */
+AWS.config.update({
+  accessKeyId    : process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region         : process.env.AWS_REGION,
+});
+const s3 = new AWS.S3();
+
+/* Multer-S3 helper for uploads */
+const upload = multer({
+  storage: multerS3({
+    s3,
+    bucket: process.env.AWS_S3_BUCKET,
+    acl   : "public-read",
+    metadata: (req, file, cb) => cb(null, { fieldName: file.fieldname }),
+    key     : (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
+  }),
+});
+
+/* ─────────────────────────────────────────────────────────
+ * 7. 🚀  USER PROFILE ROUTES (CRUD + Search)
+ * ───────────────────────────────────────────────────────── */
+
+/* 7.1  Create profile */
+app.post("/userprofile", async (req, res) => {
   try {
-    const data = req.body;
-    const newUser = new UserData(data);
+    const newUser = new UserData(req.body);
     await newUser.save();
-    res.status(201).json({ message: '✅ Data saved successfully' });
+    res.status(201).json({ message: "✅ Data saved successfully" });
   } catch (error) {
-    console.error('❌ Error saving data:', error);
-
-    if (error.code === 11000 && error.keyPattern && error.keyPattern.idName) {
-      return res.status(409).json({ error: 'Duplicate key: idName already exists' });
+    console.error("❌ Error saving data:", error);
+    if (error.code === 11000 && error.keyPattern?.idName) {
+      return res.status(409).json({ error: "Duplicate key: idName already exists" });
     }
-
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
-// =========================
-// 🔍 GET: Fetch All Entries
-// =========================
-
-app.get("/userprofile", async (req, res) => {
+/* 7.2  Read – all profiles */
+app.get("/userprofile", async (_req, res) => {
   try {
     const surveys = await UserData.find({});
-    res.json(surveys);  
+    res.json(surveys);
   } catch (err) {
     console.error("❌ Error fetching surveys:", err);
     res.status(500).json({ error: "Failed to fetch surveys" });
   }
 });
 
-// =========================
-// 🔍 GET: Search Surveys by idName or email substring 
-// /userprofile/search?q=molindu
-// =========================
+/* 7.3  Read – search by idName / e-mail substring */
 app.get("/userprofile/search", async (req, res) => {
   try {
-    const query = req.query.q;
-
-    if (!query || query.trim() === "") {
-      return res.status(400).json({ error: "Query parameter 'q' is required" });
-    }
-
-    const regex = new RegExp(query, "i");
-
-    const matchedSurveys = await UserData.find({
-      $or: [
-        { idName: regex },
-        { email: regex },
-      ]
-    });
-
-    res.json(matchedSurveys);
+    const q = req.query.q;
+    if (!q?.trim()) return res.status(400).json({ error: "Query parameter 'q' is required" });
+    const regex = new RegExp(q, "i");
+    const matched = await UserData.find({ $or: [{ idName: regex }, { email: regex }] });
+    res.json(matched);
   } catch (err) {
     console.error("❌ Error searching surveys:", err);
     res.status(500).json({ error: "Failed to search surveys" });
   }
 });
 
-
-// =========================
-// 🔍 GET: Check if user profile exists by exact email 
-// /userprofile/exists?email=user@example.com
-// Returns 200 if found, 404 if not found
-// =========================
-app.get('/userprofile/exists', async (req, res) => {
-  const email = req.query.email;
-  if (!email) {
-    return res.status(400).json({ error: 'Email query parameter is required' });
-  }
+/* 7.4  FAST Read – existence (and also count) by e-mail
+        -----------------------------------------------------------------
+        • ?email=foo@bar.com            → 204 if exist, 404 if not
+        • ?email=foo@bar.com&withCount  → 200/404 + JSON {exists,count}
+        Uses the non-unique index for an index-only O(log n) lookup      */
+app.get("/userprofile/exists", async (req, res) => {
+  const { email, withCount } = req.query;
+  if (!email) return res.status(400).json({ error: "Email query parameter is required" });
 
   try {
-    const user = await UserData.findOne({ email: email }); 
-    if (user) {
-      return res.status(200).json({ exists: true });
-    } else {
-      return res.status(404).json({ exists: false });
+    /* Cheapest boolean check */
+    const emailExists = await UserData.exists({ email });
+
+    /* If caller only needs yes/no, reply with minimal payload */
+    if (!withCount) {
+      return emailExists ? res.status(204).end() // found → 204 No Content
+                         : res.status(404).end(); // not found
     }
-  } catch (error) {
-    console.error('Error checking user profile:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+
+    /* Need exact count? perform second index-only count */
+    const count = emailExists ? await UserData.countDocuments({ email }) : 0;
+    return res.status(emailExists ? 200 : 404).json({ exists: !!emailExists, count });
+  } catch (err) {
+    console.error("❌ Error checking email existence:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// ========================= 
-// 🔍 GET: Fetch User Profile by ID
-// ========================= 
+/* 7.5  Read – by idName */
 app.get("/userprofile/:idName", async (req, res) => {
   try {
     const { idName } = req.params;
-    
-    if (!idName) {
-      return res.status(400).json({ error: "idName parameter is required" });
-    }
-    
+    if (!idName) return res.status(400).json({ error: "idName parameter is required" });
     const user = await UserData.findOne({ idName });
-    
-    if (!user) {
-      return res.status(404).json({ error: "User profile not found" });
-    }
-    
+    if (!user) return res.status(404).json({ error: "User profile not found" });
     console.log(`✅ User profile fetched: ${idName}`);
-    return res.status(200).json(user);
+    res.status(200).json(user);
   } catch (error) {
     console.error("❌ Error fetching user profile:", error);
-    return res.status(500).json({ error: "Failed to fetch user profile" });
+    res.status(500).json({ error: "Failed to fetch user profile" });
   }
 });
 
+/* 7.6  Update profile (change idName/email) */
+app.put("/userprofile/:idName", async (req, res) => {
+  try {
+    const { idName }       = req.params;
+    const { newIdName, newEmail } = req.body;
+    if (!idName) return res.status(400).json({ error: "idName parameter is required" });
 
-// =============================
-// ✅ POST: Verify OTP
-// =============================
+    const existingUser = await UserData.findOne({ idName });
+    if (!existingUser)
+      return res.status(404).json({ error: "User not found. Please check the username and try again." });
 
-app.post("/verify-email-otp", (req, res) => {
-  console.log("Received POST request to /verify-email-otp");
+    const updateData = {};
+    if (newIdName) updateData.idName = newIdName;
+    if (newEmail)  updateData.email  = newEmail;
+    if (!Object.keys(updateData).length)
+      return res.status(400).json({ error: "No update data provided. Please provide newIdName or newEmail." });
 
-  const { email, otp } = req.body;
-  console.log("Request body:", req.body);
-
-  if (!email || !otp) {
-    console.warn("Missing email or OTP in request");
-    return res.status(400).json({ verified: false, message: "Email and OTP are required" });
-  }
-
-  console.log(`Checking OTP for email: ${email}`);
-  console.log(`Expected OTP: ${otpStore[email]}, Provided OTP: ${otp}`);
-
-  if (otpStore[email] === otp) {
-    console.log("OTP matched. Deleting OTP from store.");
-    delete otpStore[email];
-    console.log("OTP deleted from store.");
-    return res.json({ verified: true, message: "✅ OTP verified successfully" });
-  } else {
-    console.warn("OTP mismatch or expired OTP");
-    return res.json({ verified: false, message: "❌ Invalid or expired OTP" });
+    if (newIdName && newIdName !== idName) {
+      const duplicate = await UserData.findOne({ idName: newIdName });
+      if (duplicate) return res.status(409).json({ error: "Username already taken. Please choose a different username." });
+    }
+    const updatedUser = await UserData.findOneAndUpdate({ idName }, updateData, { new: true });
+    console.log(`✅ User profile updated: ${idName} -> ${updatedUser.idName}`);
+    res.status(200).json({ message: "✅ User profile updated successfully", user: updatedUser });
+  } catch (error) {
+    console.error("❌ Error updating user profile:", error);
+    if (error.code === 11000 && error.keyPattern?.idName)
+      return res.status(409).json({ error: "Username already taken. Please choose a different username." });
+    res.status(500).json({ error: "Failed to update user profile" });
   }
 });
 
+/* 7.7  Delete profile */
+app.delete("/userprofile/:idName", async (req, res) => {
+  try {
+    const { idName } = req.params;
+    if (!idName) return res.status(400).json({ error: "idName parameter is required" });
+    const deleted = await UserData.findOneAndDelete({ idName });
+    if (!deleted) return res.status(404).json({ error: "User not found" });
+    console.log(`✅ User profile deleted: ${idName}`);
+    res.status(200).json({ message: "✅ User profile deleted successfully" });
+  } catch (error) {
+    console.error("❌ Error deleting user profile:", error);
+    res.status(500).json({ error: "Failed to delete user profile" });
+  }
+});
 
-// =============================
-// ✉️ POST: Send OTP to Email
-// =============================
+/* ─────────────────────────────────────────────────────────
+ * 8. 🔐  EMAIL OTP ROUTES
+ * ───────────────────────────────────────────────────────── */
 
-const otpStore = {};
-
+/* 8.1  Send OTP */
 app.post("/send-email-otp", async (req, res) => {
-  console.log("📩 Received POST request to /send-email-otp");
-
   const { email } = req.body;
-  console.log("Request body:", req.body);
+  if (!email) return res.status(400).json({ error: "Email is required" });
 
-  if (!email) {
-    console.warn("⚠️ Email not provided in request");
-    return res.status(400).json({ error: "Email is required" });
-  }
-
-  // Generate 6-digit OTP
+  /* Generate & store 6-digit OTP */
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   otpStore[email] = otp;
-  console.log(`🔐 Generated OTP for ${email}: ${otp}`);
 
-  // Configure transporter
+  /* Nodemailer setup */
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_PASS,
-    },
+    service: "gmail",
+    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS },
   });
-
-  console.log("📨 Nodemailer transporter configured");
 
   const mailOptions = {
     from: process.env.GMAIL_USER,
     to: email,
-    subject: 'Your OTP Code for BGazeFocus-OddTasks',
+    subject: "Your OTP Code for BGazeFocus-OddTasks",
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 10px; background-color: #f9f9f9;">
-        <div style="text-align: center; margin-bottom: 20px;">
-          <img src="cid:braingazeLogo" alt="Braingaze Logo" style="max-width: 120px;" />
+      <div style="font-family: Arial; max-width:500px; margin:auto; padding:20px; border:1px solid #eaeaea; border-radius:10px; background:#f9f9f9;">
+        <div style="text-align:center; margin-bottom:20px;">
+          <img src="cid:braingazeLogo" alt="Braingaze Logo" style="max-width:120px;" />
         </div>
-        <h2 style="text-align: center; color: #333; font-weight: bold;">BGazeFocus-OddTasks Verification</h2>
+        <h2 style="text-align:center; color:#333;">BGazeFocus-OddTasks Verification</h2>
         <p>Hi,</p>
-        <p>I'm <strong>Molindu</strong> from the Braingaze team. To verify your account, please use the following one-time password (OTP):</p>
-        <div style="text-align: center; margin: 20px 0;">
-          <span style="display: inline-block; font-size: 32px; font-weight: bold; color: #ffffff; background-color: #007bff; padding: 12px 24px; border-radius: 8px; letter-spacing: 2px;">
+        <p>I'm <strong>Molindu</strong> from the Braingaze team. Use this one-time password (OTP):</p>
+        <div style="text-align:center; margin:20px 0;">
+          <span style="font-size:32px; font-weight:bold; color:#fff; background:#007bff; padding:12px 24px; border-radius:8px; letter-spacing:2px;">
             ${otp}
           </span>
         </div>
-        <p>If you have any questions about this OTP, feel free to reply directly to this email thread.</p>
-        <p style="margin-top: 30px;">Thanks,<br><strong>The Braingaze Team</strong></p>
+        <p>If you have any questions about this OTP, reply to this e-mail.</p>
+        <p style="margin-top:30px;">Thanks,<br><strong>The Braingaze Team</strong></p>
       </div>
     `,
-    attachments: [
-      {
-        filename: 'braingaze.png',
-        path: path.join(__dirname, 'braingaze.png'),
-        cid: 'braingazeLogo' 
-      }
-    ]
+    attachments: [{
+      filename: "braingaze.png",
+      path    : path.join(__dirname, "braingaze.png"),
+      cid     : "braingazeLogo",
+    }],
   };
-
-  console.log("✉️ Mail options prepared with embedded logo");
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`✅ OTP email sent successfully to ${email}`);
-    res.json({ message: "✅ OTP sent to email" });
+    console.log(`✅ OTP e-mail sent → ${email}`);
+    res.json({ message: "✅ OTP sent to e-mail" });
   } catch (err) {
-    console.error("❌ Error sending OTP email:", err);
+    console.error("❌ Error sending OTP e-mail:", err);
     res.status(500).json({ error: "Failed to send OTP" });
   }
 });
 
+/* 8.2  Verify OTP */
+app.post("/verify-email-otp", (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp)
+    return res.status(400).json({ verified: false, message: "Email and OTP are required" });
 
-// =============================
-// 🗑️ DELETE: Remove User Profile
-// =============================
+  if (otpStore[email] === otp) {
+    delete otpStore[email]; // one-time usage
+    return res.json({ verified: true, message: "✅ OTP verified successfully" });
+  }
+  return res.json({ verified: false, message: "❌ Invalid or expired OTP" });
+});
 
-app.delete("/userprofile/:idName", async (req, res) => {
+/* ─────────────────────────────────────────────────────────
+ * 9. ☁️  AWS-S3 FILE ROUTES
+ * ───────────────────────────────────────────────────────── */
+
+/* 9.1  Upload file to S3 */
+app.post("/s3/upload", upload.single("file"), (req, res) => {
+  res.json({ message: "✅ File uploaded to S3", key: req.file.key, url: req.file.location });
+});
+
+/* 9.2  List files in bucket */
+app.get("/s3/files", async (_req, res) => {
   try {
-    const { idName } = req.params;
-    
-    if (!idName) {
-      return res.status(400).json({ error: "idName parameter is required" });
-    }
-    
-    const deletedUser = await UserData.findOneAndDelete({ idName });
-    
-    if (!deletedUser) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    
-    console.log(`✅ User profile deleted: ${idName}`);
-    return res.status(200).json({ message: "✅ User profile deleted successfully" });
-  } catch (error) {
-    console.error("❌ Error deleting user profile:", error);
-    return res.status(500).json({ error: "Failed to delete user profile" });
+    const data = await s3.listObjectsV2({ Bucket: process.env.AWS_S3_BUCKET }).promise();
+    res.json(data.Contents);
+  } catch (err) {
+    console.error("❌ S3 list error:", err);
+    res.status(500).json({ error: "Failed to list files" });
   }
 });
 
+/* 9.3  Generate signed download URL */
+app.get("/s3/file/:key", (req, res) => {
+  const url = s3.getSignedUrl("getObject", {
+    Bucket : process.env.AWS_S3_BUCKET,
+    Key    : req.params.key,
+    Expires: 60 * 60, // 1 h
+  });
+  res.json({ url });
+});
 
-// =============================
-// ✏️ PUT: Update User Profile
-// =============================
-
-app.put("/userprofile/:idName", async (req, res) => {
+/* 9.4  Delete file from bucket */
+app.delete("/s3/file/:key", async (req, res) => {
   try {
-    const { idName } = req.params;
-    const { newIdName, newEmail } = req.body;
-    
-    if (!idName) {
-      return res.status(400).json({ error: "idName parameter is required" });
-    }
-    
-    // Check if user exists
-    const existingUser = await UserData.findOne({ idName });
-    
-    if (!existingUser) {
-      return res.status(404).json({ error: "User not found. Please check the username and try again." });
-    }
-    
-    // Prepare update object with only provided fields
-    const updateData = {};
-    if (newIdName) updateData.idName = newIdName;
-    if (newEmail) updateData.email = newEmail;
-    
-    // If no fields to update, return early
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ error: "No update data provided. Please provide newIdName or newEmail." });
-    }
-    
-    // Check if new idName already exists (if changing idName)
-    if (newIdName && newIdName !== idName) {
-      const duplicateCheck = await UserData.findOne({ idName: newIdName });
-      if (duplicateCheck) {
-        return res.status(409).json({ error: "Username already taken. Please choose a different username." });
-      }
-    }
-    
-    // Update the user profile
-    const updatedUser = await UserData.findOneAndUpdate(
-      { idName }, 
-      updateData, 
-      { new: true }
-    );
-    
-    console.log(`✅ User profile updated: ${idName} -> ${updatedUser.idName}`);
-    return res.status(200).json({ 
-      message: "✅ User profile updated successfully",
-      user: updatedUser
-    });
-  } catch (error) {
-    console.error("❌ Error updating user profile:", error);
-    
-    // Handle duplicate key error
-    if (error.code === 11000 && error.keyPattern && error.keyPattern.idName) {
-      return res.status(409).json({ error: "Username already taken. Please choose a different username." });
-    }
-    
-    return res.status(500).json({ error: "Failed to update user profile" });
+    await s3.deleteObject({ Bucket: process.env.AWS_S3_BUCKET, Key: req.params.key }).promise();
+    res.json({ message: "✅ File deleted from S3" });
+  } catch (err) {
+    console.error("❌ S3 delete error:", err);
+    res.status(500).json({ error: "Failed to delete file" });
   }
 });
 
-// =============================
-// 🚀 Start the Express Server
-// =============================
+/* ─────────────────────────────────────────────────────────
+ * 10. 🚀  Start Express Server
+ * ───────────────────────────────────────────────────────── */
+app.listen(PORT, () => console.log(`🚀 Server listening on port ${PORT}`));
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server listening on port ${PORT}`);
-});
-
-
-// mongodb+srv://Molindu:Diyaparaduwa123@@bgazefocus-oddtasks.bmvxopg.mongodb.net/?retryWrites=true&w=majority&appName=BGazeFocus-OddTasks
+/* Mongo URI (reference) 
+mongodb+srv://Molindu:Diyaparaduwa123@@bgazefocus-oddtasks.bmvxopg.mongodb.net/?retryWrites=true&w=majority&appName=BGazeFocus-OddTasks
+*/
