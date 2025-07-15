@@ -36,7 +36,7 @@ async function connectDB() {
     }
   }
 }
-// Attempt connection immediately (cold start)
+// Attempt connection immediately 
 connectDB();
 
 /* -------- Routes -------- */
